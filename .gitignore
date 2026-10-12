@@ -1,0 +1,13 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx
+measure_apk.ps1
+release_apk/
+!gradle/wrapper/gradle-wrapper.jar

@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">FolioReader</string>
+    <string name="open_pdf">Open PDF Book</string>
+    <string name="open_sample">Read Sample Classic</string>
+    <string name="library_title">Your Library</string>
+    <string name="no_recent_books">No documents yet. Tap below to pick any PDF from your device storage.</string>
+    <string name="theme_paper">Paper</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="layout_single">Single Page</string>
+    <string name="layout_dual">Facing Pages</string>
+    <string name="layout_auto">Auto Layout</string>
+    <string name="page_x_of_y">Page %1$d of %2$d</string>
+</resources>
