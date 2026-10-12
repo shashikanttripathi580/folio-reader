@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FolioReader — Interactive Android Preview</title>
+<style>
+  :root {
+    --bg-paper: #F3EDE2;
+    --page-paper: #FDFBF7;
+    --ink-paper: #2C221E;
+    --accent-paper: #8C5F35;
+    --spine-paper: #382C22;
+    --toolbar-paper: #E8DFD0;
+    --divider-paper: #DED3C1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #18191c;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  header p {
+    font-size: 14px;
+    color: #94a3b8;
+  }
+  .controls-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn-toggle {
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    color: #e4e4e7;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-toggle:hover { background: #3f3f46; }
+  .btn-toggle.active {
+    background: #c2884a;
+    border-color: #c2884a;
+    color: #ffffff;
+  }
+  
+  /* Device Container */
+  .device-wrapper {
+    position: relative;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
+    border-radius: 36px;
+    background: #000;
+    padding: 12px;
+    border: 4px solid #3f3f46;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .device-wrapper.phone {
+    width: 380px;
+    height: 760px;
+  }
+  .device-wrapper.tablet {
+    width: 820px;
+    height: 520px;
+  }
+  
+  .screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 28px;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg-paper);
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+  }
+  
+  /* Android Status Bar */
+  .status-bar {
+    height: 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(44, 34, 30, 0.75);
+    z-index: 10;
+  }
+  .camera-hole {
+    width: 10px;
+    height: 10px;
+    background: #000;
+    border-radius: 50%;
+  }
+
+  /* Reader Top Bar */
+  .reader-top {
+    height: 48px;
+    background: var(--toolbar-paper);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    z-index: 10;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  .reader-top.hidden {
+    opacity: 0;
+    transform: translateY(-100%);
+    pointer-events: none;
+  }
+  .reader-top .title {
+    font-family: Georgia, serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-paper);
+  }
+  .badge {
+    background: rgba(0,0,0,0.06);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-paper);
+  }
+
+  /* Main Canvas Surface */
+  .canvas-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+  }
+  .canvas-container:active { cursor: grabbing; }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Reader Bottom Bar */
+  .reader-bottom {
+    background: var(--toolbar-paper);
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+    padding: 10px 16px 14px 16px;
+    z-index: 10;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  .reader-bottom.hidden {
+    opacity: 0;
+    transform: translateY(100%);
+    pointer-events: none;
+  }
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .slider-row input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent-paper);
+    cursor: pointer;
+  }
+  .progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-paper);
+    font-family: Georgia, serif;
+  }
+  .nav-btn {
+    background: none;
+    border: none;
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--accent-paper);
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+
+  .instructions {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.6;
+    max-width: 600px;
+  }
+  .kbd {
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #f1f5f9;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📖 FolioReader Android Preview</h1>
+  <p>Interactive demonstration running the exact physics curl math & UI layouts</p>
+</header>
+
+<div class="controls-bar">
+  <button class="btn-toggle active" id="btn-phone" onclick="setMode('phone')">📱 Mobile View</button>
+  <button class="btn-toggle" id="btn-tablet" onclick="setMode('tablet')">📖 Book Spread (Tablet)</button>
+  <button class="btn-toggle" id="btn-paper" onclick="setTheme('paper')">📜 Warm Paper</button>
+  <button class="btn-toggle" id="btn-light" onclick="setTheme('light')">☀️ Daylight</button>
+  <button class="btn-toggle" id="btn-dark" onclick="setTheme('dark')">🌙 Midnight</button>
+</div>
+
+<div class="device-wrapper phone" id="device">
+  <div class="screen" id="screen">
+    <!-- Status Bar -->
+    <div class="status-bar" id="statusBar">
+      <span>10:12</span>
+      <div class="camera-hole"></div>
+      <span>84% 🔋</span>
+    </div>
+
+    <!-- Reading Top Bar -->
+    <div class="reader-top" id="topBar">
+      <span style="font-size: 20px; cursor: pointer;">‹</span>
+      <div class="title" id="bookTitle">Alice in Wonderland</div>
+      <div class="badge" id="layoutBadge">Auto</div>
+    </div>
+
+    <!-- Interactive Canvas -->
+    <div class="canvas-container" id="canvasBox">
+      <canvas id="pageCanvas"></canvas>
+    </div>
+
+    <!-- Reading Bottom Bar -->
+    <div class="reader-bottom" id="bottomBar">
+      <div class="slider-row">
+        <input type="range" id="pageSlider" min="1" max="6" value="1" oninput="onSlider(this.value)">
+      </div>
+      <div class="progress-info">
+        <button class="nav-btn" onclick="turnBackward()">‹ Prev</button>
+        <span id="pageText">Page 1 of 6</span>
+        <button class="nav-btn" onclick="turnForward()">Next ›</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="instructions">
+  💡 <strong>Interactive Controls:</strong><br>
+  • Click & <strong>drag the page from right-to-left</strong> to peel the 3D curl with realistic shadows and paper highlights.<br>
+  • Tap <strong>left margin</strong> to turn back, <strong>right margin</strong> to turn forward, or <strong>center</strong> to toggle toolbars.<br>
+  • Use buttons above to switch to <strong>Book Spread (Facing Pages)</strong> or toggle <strong>Paper / Light / Dark</strong> themes.
+</div>
+
+<script>
+  const pages = [
+    {
+      isCover: true,
+      title: "ALICE'S ADVENTURES\nIN WONDERLAND",
+      subtitle: "By Lewis Carroll\nClassic Native Edition",
+      text: ["\"Curiouser and curiouser!\" cried Alice (she was so much surprised, that for the moment she quite forgot how to speak good English).", "A demonstration book designed for FolioReader with realistic physical page curl, dual facing pages, and warm paper rendering."]
+    },
+    {
+      isCover: false,
+      chapter: "CHAPTER I",
+      title: "Down the Rabbit-Hole",
+      text: [
+        "Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it.",
+        "\"And what is the use of a book,\" thought Alice, \"without pictures or conversations?\"",
+        "So she was considering in her own mind whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies, when suddenly a White Rabbit with pink eyes ran close by her."
+      ]
+    },
+    {
+      isCover: false,
+      chapter: "CHAPTER I (Cont.)",
+      title: "The Deep Well",
+      text: [
+        "In another moment down went Alice after it, never once considering in the world how she was to get out again.",
+        "The rabbit-hole went straight on like a tunnel for some way, and then dipped suddenly down, so suddenly that Alice had not a moment to think about stopping herself before she found herself falling down a very deep well.",
+        "Either the well was very deep, or she fell very slowly, for she had plenty of time as she went down to look about her and to wonder what was going to happen next."
+      ]
+    },
+    {
+      isCover: false,
+      chapter: "CHAPTER I (Cont.)",
+      title: "Orange Marmalade",
+      text: [
+        "She took down a jar from one of the shelves as she passed; it was labelled 'ORANGE MARMALADE', but to her great disappointment it was empty.",
+        "She did not like to drop the jar for fear of killing somebody, so managed to put it into one of the cupboards as she fell past it.",
+        "\"Well!\" thought Alice to herself, \"after such a fall as this, I shall think nothing of tumbling down stairs! How brave they'll all think me at home!\""
+      ]
+    },
+    {
+      isCover: false,
+      chapter: "CHAPTER II",
+      title: "The Pool of Tears",
+      text: [
+        "\"Curiouser and curiouser!\" cried Alice; \"now I'm opening out like the largest telescope that ever was! Good-bye, feet!\"",
+        "\"Oh, my poor little feet, I wonder who will put on your shoes and stockings for you now, dears? I'm sure I shan't be able! I shall be a great deal too far off to trouble myself about you: you must manage the best way you can;--but I must be kind to them, or perhaps they won't walk the way I want to go!\"",
+        "And she went on planning to herself how she would manage it."
+      ]
+    },
+    {
+      isCover: false,
+      chapter: "EPILOGUE",
+      title: "The Physical Book",
+      text: [
+        "There is a timeless intimacy in holding a book—the weight of pages resting against the palm, the gentle rustle of paper curving between thumb and fingers, and the soft shadow dancing down the spine gutter.",
+        "FolioReader brings that physical tactile presence to Android screens with lightweight native rendering.",
+        "Open any PDF from your device storage to experience your library in authentic book form."
+      ]
+    }
+  ];
+
+  let currentPage = 0; // 0-indexed
+  let currentMode = 'phone'; // 'phone' or 'tablet'
+  let currentTheme = 'paper';
+  let controlsVisible = true;
+
+  // Animation state
+  let curlProgress = 0.0;
+  let isDragging = false;
+  let startX = 0;
+  let touchY = 0.5;
+  let turnDirection = 'none';
+
+  const canvas = document.getElementById('pageCanvas');
+  const ctx = canvas.getContext('2d');
+  const deviceEl = document.getElementById('device');
+  const topBar = document.getElementById('topBar');
+  const bottomBar = document.getElementById('bottomBar');
+  const pageText = document.getElementById('pageText');
+  const pageSlider = document.getElementById('pageSlider');
+
+  const themes = {
+    paper: { bg: '#F3EDE2', page: '#FDFBF7', ink: '#2C221E', spine: '#382C22', toolbar: '#E8DFD0', accent: '#8C5F35' },
+    light: { bg: '#E9ECEF', page: '#FFFFFF', ink: '#1F2428', spine: '#333333', toolbar: '#F8F9FA', accent: '#2B6CB0' },
+    dark:  { bg: '#0F0F0F', page: '#1A1A1A', ink: '#E0E0E0', spine: '#050505', toolbar: '#141414', accent: '#E5A93C' }
+  };
+
+  function resizeCanvas() {
+    const box = document.getElementById('canvasBox');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = box.clientWidth * dpr;
+    canvas.height = box.clientHeight * dpr;
+    render();
+  }
+
+  function setMode(mode) {
+    currentMode = mode;
+    deviceEl.className = 'device-wrapper ' + mode;
+    document.getElementById('btn-phone').classList.toggle('active', mode === 'phone');
+    document.getElementById('btn-tablet').classList.toggle('active', mode === 'tablet');
+    document.getElementById('layoutBadge').innerText = mode === 'tablet' ? 'Facing Pages' : 'Single Page';
+    setTimeout(resizeCanvas, 320);
+  }
+
+  function setTheme(t) {
+    currentTheme = t;
+    ['paper', 'light', 'dark'].forEach(name => {
+      document.getElementById('btn-' + name).classList.toggle('active', name === t);
+    });
+    const c = themes[t];
+    document.getElementById('screen').style.background = c.bg;
+    topBar.style.background = c.toolbar;
+    bottomBar.style.background = c.toolbar;
+    document.getElementById('statusBar').style.color = c.ink;
+    document.getElementById('bookTitle').style.color = c.ink;
+    render();
+  }
+
+  function updatePageUI() {
+    const total = pages.length;
+    const isDual = currentMode === 'tablet';
+    if (isDual) {
+      const p1 = currentPage + 1;
+      const p2 = Math.min(currentPage + 2, total);
+      pageText.innerText = (p1 === p2) ? `Page ${p1} of ${total}` : `Pages ${p1}–${p2} of ${total}`;
+      pageSlider.value = currentPage + 1;
+    } else {
+      pageText.innerText = `Page ${currentPage + 1} of ${total}`;
+      pageSlider.value = currentPage + 1;
+    }
+    render();
+  }
+
+  function render() {
+    const w = canvas.width;
+    const h = canvas.height;
+    if (w === 0 || h === 0) return;
+
+    const theme = themes[currentTheme];
+    ctx.clearRect(0, 0, w, h);
+
+    // Background desk
+    ctx.fillStyle = theme.bg;
+    ctx.fillRect(0, 0, w, h);
+
+    const isDual = currentMode === 'tablet';
+
+    if (isDual) {
+      renderDualSpread(w, h, theme);
+    } else {
+      renderSingleSpread(w, h, theme);
+    }
+  }
+
+  function renderSingleSpread(w, h, theme) {
+    const padH = w * 0.04;
+    const padV = h * 0.03;
+    const pw = w - padH * 2;
+    const ph = h - padV * 2;
+    const rect = { x: padH, y: padV, w: pw, h: ph };
+
+    // Outer desk shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    roundRect(ctx, rect.x + 4, rect.y + 6, rect.w, rect.h, 12, true);
+
+    // If curling forward
+    if (turnDirection === 'forward' && curlProgress > 0) {
+      // Underneath next page
+      if (currentPage + 1 < pages.length) {
+        drawPageContent(rect, pages[currentPage + 1], theme);
+      }
+      // Curled top page
+      drawCurl(rect, pages[currentPage], theme, true);
+    } else if (turnDirection === 'backward' && curlProgress > 0) {
+      if (currentPage > 0) {
+        drawPageContent(rect, pages[currentPage - 1], theme);
+      }
+      drawCurl(rect, pages[currentPage], theme, false);
+    } else {
+      drawPageContent(rect, pages[currentPage], theme);
+    }
+
+    // Left binding line
+    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(rect.x + 12, rect.y);
+    ctx.lineTo(rect.x + 12, rect.y + rect.h);
+    ctx.stroke();
+  }
+
+  function renderDualSpread(w, h, theme) {
+    const padH = w * 0.03;
+    const padV = h * 0.04;
+    const bookW = w - padH * 2;
+    const bookH = h - padV * 2;
+    const halfW = bookW / 2;
+    const spineX = padH + halfW;
+
+    const leftRect = { x: padH, y: padV, w: halfW, h: bookH };
+    const rightRect = { x: spineX, y: padV, w: halfW, h: bookH };
+
+    // Outer hardcover shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    roundRect(ctx, leftRect.x + 6, leftRect.y + 8, bookW, bookH, 14, true);
+
+    // Left page
+    const pLeft = (currentPage % 2 === 0) ? currentPage : currentPage - 1;
+    const pRight = pLeft + 1;
+
+    // Draw Left Page
+    if (turnDirection === 'backward' && curlProgress > 0) {
+      if (pLeft - 2 >= 0) drawPageContent(leftRect, pages[pLeft - 2], theme);
+      drawCurl(leftRect, pages[pLeft], theme, false);
+    } else {
+      if (pLeft < pages.length) drawPageContent(leftRect, pages[pLeft], theme);
+    }
+
+    // Draw Right Page
+    if (turnDirection === 'forward' && curlProgress > 0) {
+      if (pRight + 1 < pages.length) drawPageContent(rightRect, pages[pRight + 1], theme);
+      drawCurl(rightRect, pages[pRight], theme, true);
+    } else {
+      if (pRight < pages.length) drawPageContent(rightRect, pages[pRight], theme);
+    }
+
+    // Center Spine Gutter Shadow
+    const gutterW = 36 * (window.devicePixelRatio || 1);
+    const gradL = ctx.createLinearGradient(spineX - gutterW, 0, spineX, 0);
+    gradL.addColorStop(0, 'rgba(0,0,0,0)');
+    gradL.addColorStop(0.7, 'rgba(40,30,20,0.12)');
+    gradL.addColorStop(1, 'rgba(40,30,20,0.38)');
+    ctx.fillStyle = gradL;
+    ctx.fillRect(spineX - gutterW, padV, gutterW, bookH);
+
+    const gradR = ctx.createLinearGradient(spineX, 0, spineX + gutterW, 0);
+    gradR.addColorStop(0, 'rgba(40,30,20,0.38)');
+    gradR.addColorStop(0.3, 'rgba(40,30,20,0.12)');
+    gradR.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gradR;
+    ctx.fillRect(spineX, padV, gutterW, bookH);
+
+    // Center crease line
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(spineX, padV);
+    ctx.lineTo(spineX, padV + bookH);
+    ctx.stroke();
+  }
+
+  function drawPageContent(rect, pageData, theme) {
+    if (!pageData) return;
+    ctx.save();
+    ctx.fillStyle = theme.page;
+    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+    // Border frame
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(rect.x + 8, rect.y + 8, rect.w - 16, rect.h - 16);
+
+    const scale = rect.w / 340;
+    ctx.fillStyle = theme.ink;
+    ctx.textAlign = 'center';
+
+    let y = rect.y + 36 * scale;
+
+    if (pageData.isCover) {
+      ctx.font = `${14 * scale}px Georgia, serif`;
+      ctx.fillStyle = theme.accent;
+      ctx.fillText("✦  ❦  ✦", rect.x + rect.w / 2, y);
+      y += 28 * scale;
+
+      ctx.fillStyle = theme.ink;
+      ctx.font = `bold ${20 * scale}px Georgia, serif`;
+      pageData.title.split('\n').forEach(line => {
+        ctx.fillText(line, rect.x + rect.w / 2, y);
+        y += 24 * scale;
+      });
+      y += 12 * scale;
+
+      ctx.fillStyle = theme.accent;
+      ctx.font = `italic ${12 * scale}px Georgia, serif`;
+      pageData.subtitle.split('\n').forEach(sub => {
+        ctx.fillText(sub, rect.x + rect.w / 2, y);
+        y += 18 * scale;
+      });
+      y += 24 * scale;
+    } else {
+      ctx.fillStyle = theme.accent;
+      ctx.font = `italic ${12 * scale}px Georgia, serif`;
+      ctx.fillText(pageData.chapter, rect.x + rect.w / 2, y);
+      y += 22 * scale;
+
+      ctx.fillStyle = theme.ink;
+      ctx.font = `bold ${16 * scale}px Georgia, serif`;
+      ctx.fillText(pageData.title, rect.x + rect.w / 2, y);
+      y += 16 * scale;
+
+      ctx.font = `${12 * scale}px Georgia, serif`;
+      ctx.fillStyle = theme.accent;
+      ctx.fillText("— ❦ —", rect.x + rect.w / 2, y);
+      y += 26 * scale;
+    }
+
+    // Body Paragraphs
+    ctx.textAlign = 'left';
+    ctx.fillStyle = theme.ink;
+    ctx.font = `${11.5 * scale}px Georgia, serif`;
+
+    const marginX = rect.x + 22 * scale;
+    const maxW = rect.w - 44 * scale;
+
+    for (const p of pageData.text) {
+      const words = p.split(' ');
+      let line = '';
+      for (const w of words) {
+        const test = line ? line + ' ' + w : w;
+        if (ctx.measureText(test).width <= maxW) {
+          line = test;
+        } else {
+          ctx.fillText(line, marginX, y);
+          y += 18 * scale;
+          line = w;
+        }
+      }
+      if (line) {
+        ctx.fillText(line, marginX, y);
+        y += 18 * scale;
+      }
+      y += 10 * scale;
+    }
+
+    ctx.restore();
+  }
+
+  function drawCurl(rect, pageData, theme, isFromRight) {
+    const w = rect.w;
+    const h = rect.h;
+    const prog = Math.min(Math.max(curlProgress, 0.01), 0.99);
+
+    ctx.save();
+    if (isFromRight) {
+      const curlX = rect.x + rect.w - (w * prog);
+      const skew = (touchY - 0.5) * 0.3 * (1 - prog) * w;
+      const topX = Math.min(Math.max(curlX + skew, rect.x), rect.x + rect.w);
+      const botX = Math.min(Math.max(curlX - skew, rect.x), rect.x + rect.w);
+
+      // Clip flat page part
+      ctx.beginPath();
+      ctx.moveTo(rect.x, rect.y);
+      ctx.lineTo(topX, rect.y);
+      ctx.quadraticCurveTo(curlX, rect.y + h * 0.5, botX, rect.y + h);
+      ctx.lineTo(rect.x, rect.y + h);
+      ctx.closePath();
+      ctx.clip();
+      drawPageContent(rect, pageData, theme);
+      ctx.restore();
+
+      // Drop shadow on underneath page
+      const shadowW = w * 0.16;
+      const gradShadow = ctx.createLinearGradient(curlX - shadowW, 0, curlX + shadowW * 0.6, 0);
+      gradShadow.addColorStop(0, 'rgba(0,0,0,0)');
+      gradShadow.addColorStop(0.4, 'rgba(0,0,0,0.22)');
+      gradShadow.addColorStop(0.8, 'rgba(0,0,0,0.45)');
+      gradShadow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gradShadow;
+      ctx.fillRect(curlX - shadowW, rect.y, shadowW * 1.6, h);
+
+      // Cylinder highlight & curvature roll
+      const rollW = w * 0.12;
+      const gradRoll = ctx.createLinearGradient(curlX - rollW * 0.5, 0, curlX + rollW * 0.8, 0);
+      gradRoll.addColorStop(0, 'rgba(0,0,0,0)');
+      gradRoll.addColorStop(0.35, 'rgba(255,255,255,0.45)');
+      gradRoll.addColorStop(0.7, 'rgba(0,0,0,0.2)');
+      gradRoll.addColorStop(1, 'rgba(0,0,0,0.45)');
+      ctx.fillStyle = gradRoll;
+      ctx.fillRect(curlX - rollW * 0.5, rect.y, rollW * 1.3, h);
+    }
+  }
+
+  function roundRect(ctx, x, y, width, height, radius, fill) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    if (fill) ctx.fill();
+  }
+
+  // Pointer & Gesture tracking
+  const container = document.getElementById('canvasBox');
+
+  container.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    const r = canvas.getBoundingClientRect();
+    startX = e.clientX - r.left;
+    touchY = (e.clientY - r.top) / r.height;
+    turnDirection = 'none';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const r = canvas.getBoundingClientRect();
+    const currX = e.clientX - r.left;
+    const dx = currX - startX;
+
+    if (turnDirection === 'none') {
+      if (dx < -6) {
+        turnDirection = 'forward';
+      }
+    }
+
+    if (turnDirection === 'forward') {
+      curlProgress = Math.min(Math.max(-dx / (r.width * 0.7), 0), 1);
+      render();
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+
+    if (turnDirection === 'forward') {
+      if (curlProgress > 0.3) {
+        // Animate completion
+        let anim = setInterval(() => {
+          curlProgress += 0.08;
+          if (curlProgress >= 1) {
+            clearInterval(anim);
+            curlProgress = 0;
+            turnDirection = 'none';
+            stepForward();
+          }
+          render();
+        }, 16);
+      } else {
+        // Snap back
+        let anim = setInterval(() => {
+          curlProgress -= 0.08;
+          if (curlProgress <= 0) {
+            clearInterval(anim);
+            curlProgress = 0;
+            turnDirection = 'none';
+          }
+          render();
+        }, 16);
+      }
+    }
+  });
+
+  // Tap handling
+  container.addEventListener('click', (e) => {
+    if (isDragging) return;
+    const r = canvas.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const width = r.width;
+
+    if (x < width * 0.22) {
+      turnBackward();
+    } else if (x > width * 0.78) {
+      turnForward();
+    } else {
+      controlsVisible = !controlsVisible;
+      topBar.classList.toggle('hidden', !controlsVisible);
+      bottomBar.classList.toggle('hidden', !controlsVisible);
+    }
+  });
+
+  function stepForward() {
+    const step = currentMode === 'tablet' ? 2 : 1;
+    if (currentPage + step < pages.length) {
+      currentPage += step;
+    } else if (currentPage + 1 < pages.length) {
+      currentPage += 1;
+    }
+    updatePageUI();
+  }
+
+  function turnForward() {
+    turnDirection = 'forward';
+    curlProgress = 0;
+    let anim = setInterval(() => {
+      curlProgress += 0.06;
+      if (curlProgress >= 1) {
+        clearInterval(anim);
+        curlProgress = 0;
+        turnDirection = 'none';
+        stepForward();
+      }
+      render();
+    }, 16);
+  }
+
+  function turnBackward() {
+    const step = currentMode === 'tablet' ? 2 : 1;
+    currentPage = Math.max(0, currentPage - step);
+    updatePageUI();
+  }
+
+  function onSlider(val) {
+    currentPage = Math.max(0, Math.min(parseInt(val) - 1, pages.length - 1));
+    updatePageUI();
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+  setTimeout(() => {
+    resizeCanvas();
+    updatePageUI();
+  }, 100);
+</script>
+
+</body>
+</html>
