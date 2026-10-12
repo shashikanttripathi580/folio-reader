@@ -2,6 +2,11 @@
 
 FolioReader is an ultra-lightweight, 100% native Android PDF book reader application written in **Kotlin** with **Jetpack Compose**. It brings a realistic, tactile, physical-book reading experience to digital screens while keeping the total installed app footprint under **8 MB**.
 
+[![Download APK](https://img.shields.io/badge/Download-Release%20APK%20(3.18%20MB)-success?style=for-the-badge&logo=android)](https://github.com/shashikanttripathi580/folio-reader/releases/download/v1.0.0/BookReader-v1.0.0.apk)
+
+📥 **Direct Download Link**: [Download BookReader-v1.0.0.apk](https://github.com/shashikanttripathi580/folio-reader/releases/download/v1.0.0/BookReader-v1.0.0.apk)  
+🏷 **Release Page**: [FolioReader v1.0.0 Releases](https://github.com/shashikanttripathi580/folio-reader/releases/tag/v1.0.0)
+
 ---
 
 ## 📱 Release APK Size & Delivery Metrics (Measured)
